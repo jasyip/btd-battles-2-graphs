@@ -16,23 +16,23 @@ BOOST_LEN = 6
 QUEUE_MAX_LEN = 6
 MAX_ROUND = 31 # Inclusive
 
-HEADERS = (
-            "Bloon Name",
-            "Multiplier",
-            "First Round",
-            "Last Round",
-            "Bloon Delay (s)",
-            "Cooldown (s)",
-            "Cost ($)",
-            "Eco ($)",
-            "Efficiency (Boost)",
-            "Repay (s)",
-            "Eco Speed ($/s)",
-            "Drain ($/Boost)",
-          )
+HEADERS = {
+    "Bloon Name" : True,
+    "Multiplier" : False,
+    "First Round" : True,
+    "Last Round" : True,
+    "Bloon Delay (s)" : False,
+    "Cooldown (s)" : True,
+    "Cost ($)" : True,
+    "Eco ($)" : True,
+    "Efficiency (Boost)" : False,
+    "Repay (s)" : False,
+    "Eco Speed ($/s)" : False,
+    "Drain ($/Boost)" : False,
+}
 
 Header = type("Header", (), { re.sub(r"\(.*\)", "", h, 1).strip().upper().replace(' ', '_') : h
-                         for h in HEADERS })
+                         for h in HEADERS.keys() })
 
 VALUE_CONV = {
     Header.BLOON_NAME : (lambda x: x),
@@ -61,8 +61,7 @@ class BloonEco:
     def __str__(self):
         return repr(self)
 
-def main():
-
+def get_file_path():
     input_files = tuple(Path().glob(f"{DATA_FILENAME}.*"))
 
     if len(input_files) > 1:
@@ -84,9 +83,11 @@ def main():
                 pass
         input_files = input_files[i - 1 : i]
 
-    input_file = input_files[0]
-    del input_files
+    return input_files[0]
 
+
+
+def get_basic_data(input_file):
     data = None
 
     match input_file.suffix:
@@ -95,7 +96,7 @@ def main():
                 data = []
                 for row in DictReader(f):
                     for k, v in row.items():
-                        if k not in {Header.BLOON_NAME}:
+                        if HEADERS.get(k):
                             row[k] = VALUE_CONV.get(k, Rational)(v)
                     data.append(row)
                 data = tuple(data)
@@ -114,13 +115,15 @@ def main():
         row["drain_leftover_func"] = money_spent - row["drain_func"]
         row["eco_func"] = rounds * row[Header.ECO]
 
-    data = SortedList(data, key = lambda r: r[Header.ECO_SPEED])
-
-    # round_drain_rankings = [SortedDict()] * (MAX_ROUND + 1)
-    round_eco_rankings = [None] * (MAX_ROUND + 1)
+    return SortedList(data, key = lambda r: r[Header.ECO_SPEED])
 
 
-    for r in range(10, 11):
+
+def calculate_points(data, min_round = 1, max_round = MAX_ROUND):
+
+    round_points = {}
+
+    for r in range(min_round, max_round + 1):
 
         bloons = []
         for row in data:
@@ -153,50 +156,24 @@ def main():
             if include(i, v[0]):
                 drain_race[i][1][0].include = True
 
-        pp(drain_race)
+        round_points[r] = drain_race
 
-
-
-    """
-    #for i in range(1, MAX_ROUND + 1):
-    for i in range(10, 11):
-        bloons = []
-        starting_best = None
-        comp = lambda r: (r[Header.COST], -r[Header.ECO])
-        for row in data:
-            if i in range(row[Header.FIRST_ROUND], row[Header.LAST_ROUND] + 1):
-                bloons.append(row)
-                if not starting_best or comp(starting_best) > comp(row):
-                    starting_best = row
-
-        def swap(a, b):
-            i, j = a if isinstance(a, int) else bloons.index(a), b if isinstance(b, int) else bloons.index(b)
-            bloons[i], bloons[j] = bloons[j], bloons[i]
-
-        swap(starting_best, 0)
-
-        pp(bloons)
-
-        for i in range(len(bloons)):
-            next_best = None
-            for j, bloon in enumerate(bloons[i + 1 : ], i + 1):
-                if (bloon[Header.COST] > bloons[i][Header.COST]
-                    and bloon[Header.ECO_SPEED] > bloons[i][Header.ECO_SPEED]
-                   ):
-                    eco_race = SortedDict(key=lambda x: -x)
-                    drain_race = SortedDict(key=lambda x: -x)
-
-
-                    add_race(bloons[i])
-                    add_race(bloon)
-
-                    for k, v in eco_race.items():
+    return round_points
 
 
 
 
 
-    """
+
+def main():
+
+    input_file = get_file_path()
+
+    data = get_basic_data(input_file)
+
+    round_points = calculate_points(data, 1, 3)
+
+    pp(round_points)
 
 
 
