@@ -17,36 +17,36 @@ QUEUE_MAX_LEN = 6
 MAX_ROUND = 31 # Inclusive
 
 HEADERS = {
-    "Bloon Name" : True,
-    "Multiplier" : False,
-    "First Round" : True,
-    "Last Round" : True,
-    "Bloon Delay (s)" : False,
-    "Cooldown (s)" : True,
-    "Cost ($)" : True,
-    "Eco ($)" : True,
-    "Efficiency (Boost)" : False,
-    "Repay (s)" : False,
-    "Eco Speed ($/s)" : False,
-    "Drain ($/Boost)" : False,
+    "Bloon Name"         : True  ,
+    "Multiplier"         : False ,
+    "First Round"        : True  ,
+    "Last Round"         : True  ,
+    "Bloon Delay (s)"    : False ,
+    "Cooldown (s)"       : True  ,
+    "Cost ($)"           : True  ,
+    "Eco ($)"            : True  ,
+    "Efficiency (Boost)" : False ,
+    "Repay (s)"          : False ,
+    "Eco Speed ($/s)"    : False ,
+    "Drain ($/Boost)"    : False ,
 }
 
 Header = type("Header", (), { re.sub(r"\(.*\)", "", h, 1).strip().upper().replace(' ', '_') : h
                          for h in HEADERS.keys() })
 
 VALUE_CONV = {
-    Header.BLOON_NAME : (lambda x: x),
-    Header.FIRST_ROUND : int,
-    Header.LAST_ROUND : int,
-    Header.COST : int,
+    Header.BLOON_NAME  : (lambda x: x) ,
+    Header.FIRST_ROUND : int           ,
+    Header.LAST_ROUND  : int           ,
+    Header.COST        : int           ,
 }
 
 class BloonEco:
     def __init__(self, amt, obj):
-        self.obj = obj
-        self.name = self.obj[Header.BLOON_NAME]
-        self.amt = amt
-        self.eco = self.amt * self.obj[Header.ECO]
+        self.obj     = obj
+        self.name    = self.obj[Header.BLOON_NAME]
+        self.amt     = amt
+        self.eco     = self.amt * self.obj[Header.ECO]
         self.include = False
 
     def __repr__(self):
@@ -105,15 +105,15 @@ def get_basic_data(input_file):
 
     for row in data:
 
-        row[Header.DRAIN] = Rational(row[Header.COST], row[Header.COOLDOWN]) * 6
-        row[Header.ECO_SPEED] = Rational(row[Header.ECO], row[Header.COOLDOWN])
-        row[Header.EFFICIENCY] = BOOST_LEN * row[Header.ECO_SPEED]
+        row[Header.DRAIN]          = Rational(row[Header.COST], row[Header.COOLDOWN]) * 6
+        row[Header.ECO_SPEED]      = Rational(row[Header.ECO], row[Header.COOLDOWN])
+        row[Header.EFFICIENCY]     = BOOST_LEN * row[Header.ECO_SPEED]
 
         money_spent = Min(row[Header.DRAIN] * BOOST_LEN, x)
         rounds = floor(money_spent / row[Header.COST])
-        row["drain_func"] = rounds * row[Header.COST]
+        row["drain_func"]          = rounds * row[Header.COST]
         row["drain_leftover_func"] = money_spent - row["drain_func"]
-        row["eco_func"] = rounds * row[Header.ECO]
+        row["eco_func"]            = rounds * row[Header.ECO]
 
     return SortedList(data, key = lambda r: r[Header.ECO_SPEED])
 
@@ -167,9 +167,9 @@ def calculate_points(data, min_round = 1, max_round = MAX_ROUND):
 
 def main():
 
-    input_file = get_file_path()
+    input_file   = get_file_path()
 
-    data = get_basic_data(input_file)
+    data         = get_basic_data(input_file)
 
     round_points = calculate_points(data, 1, 3)
 
