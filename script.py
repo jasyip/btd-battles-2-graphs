@@ -3,18 +3,18 @@ import pygal
 from csv import DictReader
 from pathlib import Path
 import sys
-from sympy import floor, Float, Min, Rational
-from sympy.abc import x
+from sympy import floor, Float, Rational
 from sortedcontainers import SortedList, SortedDict
 from pprint import pp
 import re
-from inspect import getmembers
+from collections import namedtuple
 
+
+BOOST_LEN     = 6
+QUEUE_MAX_LEN = 6 # Not yet implemented
+MAX_ROUND     = 31 # Inclusive
 
 DATA_FILENAME = "Battles 2 Eco"
-BOOST_LEN = 6
-QUEUE_MAX_LEN = 6
-MAX_ROUND = 31 # Inclusive
 
 HEADERS = {
     "Bloon Name"         : True  ,
@@ -34,12 +34,25 @@ HEADERS = {
 Header = type("Header", (), { re.sub(r"\(.*\)", "", h, 1).strip().upper().replace(' ', '_') : h
                          for h in HEADERS.keys() })
 
+SVG_FILENAME_FORMAT = "round_{:02}.svg"
+SVG_FOLDER_NAME     = Path(__file__).parent / "svgs"
+
+
 VALUE_CONV = {
     Header.BLOON_NAME  : (lambda x: x) ,
     Header.FIRST_ROUND : int           ,
     Header.LAST_ROUND  : int           ,
     Header.COST        : int           ,
 }
+
+def format_num(x):
+    if isinstance(x, Rational):
+        x = str(Float(x)).rstrip('0')
+        if x[-1] == '.':
+            x = x[ : -1 ]
+        else:
+            x = re.sub(r"(\.\d[1-9]?)\d+", r"\1", x)
+    return str(x)
 
 class BloonEco:
     def __init__(self, amt, obj):
@@ -52,14 +65,27 @@ class BloonEco:
     def __repr__(self):
         members = []
         for name in ("eco", "name", "include"):
-            v = getattr(self, name)
-            if isinstance(v, Rational):
-                v = Float(v, dps=2)
+            v = format_num(getattr(self, name))
             members.append(f"{name}={v!r}")
         return f'{self.__class__.__name__}({", ".join(members)})'
 
     def __str__(self):
         return repr(self)
+
+CHART_ARGS = {
+    "stroke"          : False ,
+    "truncate_legend" : -1    ,
+    "include_x_axis"  : True  ,
+    "include_y_axis"  : True  ,
+}
+CHART_OPTS = {
+    "title"           : "Round {}"                       ,
+    "x_title"         : "$ to be spent in one boost ($)" ,
+    "y_title"         : "Eco gained ($)"                 ,
+    "value_formatter" : format_num                       ,
+}
+
+
 
 def get_file_path():
     input_files = tuple(Path().glob(f"{DATA_FILENAME}.*"))
@@ -104,24 +130,20 @@ def get_basic_data(input_file):
             raise NotImplementedError(f"File type of {input_file} not supported.")
 
     for row in data:
-
         row[Header.DRAIN]          = Rational(row[Header.COST], row[Header.COOLDOWN]) * 6
         row[Header.ECO_SPEED]      = Rational(row[Header.ECO], row[Header.COOLDOWN])
         row[Header.EFFICIENCY]     = BOOST_LEN * row[Header.ECO_SPEED]
 
-        money_spent = Min(row[Header.DRAIN] * BOOST_LEN, x)
-        rounds = floor(money_spent / row[Header.COST])
-        row["drain_func"]          = rounds * row[Header.COST]
-        row["drain_leftover_func"] = money_spent - row["drain_func"]
-        row["eco_func"]            = rounds * row[Header.ECO]
-
     return SortedList(data, key = lambda r: r[Header.ECO_SPEED])
 
 
+def naive_equal_lists(a, b):
+    return len(a) == len(b) and all(x in b for x in a)
 
-def calculate_points(data, min_round = 1, max_round = MAX_ROUND):
+def calculate_points(data, min_round=1, max_round=MAX_ROUND):
 
     round_points = {}
+    BloonData = namedtuple("BloonData", "bloons data")
 
     for r in range(min_round, max_round + 1):
 
@@ -130,11 +152,9 @@ def calculate_points(data, min_round = 1, max_round = MAX_ROUND):
             if r in range(row[Header.FIRST_ROUND], row[Header.LAST_ROUND] + 1):
                 bloons.append(row)
 
-        """
-        if i > 1 and set(round_eco_rankings[i - 1].values()) == set(bloons):
-            round_eco_rankings[i] = round_eco_rankings[i - 1]
+        if r > min_round and naive_equal_lists(round_points[r - 1].bloons, bloons):
+            round_points[r] = round_points[r - 1]
             continue
-        """
 
         drain_race = SortedDict()
 
@@ -156,9 +176,35 @@ def calculate_points(data, min_round = 1, max_round = MAX_ROUND):
             if include(i, v[0]):
                 drain_race[i][1][0].include = True
 
-        round_points[r] = drain_race
+        round_points[r] = BloonData(bloons, drain_race)
 
     return round_points
+
+
+
+def draw_svgs(round_points):
+    for r, (bloons, points) in round_points.items():
+        chart = pygal.XY(**CHART_ARGS)
+        for k, v in CHART_OPTS.items():
+            if isinstance(v, str):
+                v = v.format(r)
+            chart.__dict__[k] = v
+
+        bloon_points = {}
+        bloon_major_points = {}
+        for bloon in bloons:
+            bloon_points[bloon[Header.BLOON_NAME]]       = []
+            bloon_major_points[bloon[Header.BLOON_NAME]] = []
+        for drain, possible_bloons in points:
+            for bloon_eco in possible_bloons:
+                bloon_points[bloon_eco.name].append((drain, bloon_eco.eco))
+                if bloon_eco.include:
+                    bloon_major_points[bloon_eco.name].append((drain, bloon_eco.eco))
+
+        for i in bloon_points.items():
+            chart.add(*i)
+
+        chart.render_to_file(SVG_FOLDER_NAME / SVG_FILENAME_FORMAT.format(r))
 
 
 
@@ -167,13 +213,15 @@ def calculate_points(data, min_round = 1, max_round = MAX_ROUND):
 
 def main():
 
-    input_file   = get_file_path()
+    input_file   = get_file_path   ()
 
-    data         = get_basic_data(input_file)
+    data         = get_basic_data  (input_file)
 
-    round_points = calculate_points(data, 1, 3)
+    round_points = calculate_points(data)
 
-    pp(round_points)
+    SVG_FOLDER_NAME.mkdir(parents=True, exist_ok=True)
+
+    svg_paths    = draw_svgs       (round_points)
 
 
 
