@@ -1,0 +1,52 @@
+---
+boost_len              : 6  # Eco generates every BOOST_LEN seconds
+queue_max_len          : 6  # Not yet implemented
+max_round              : 50 # Inclusive
+
+default_data_filename  : Battles 2 Eco
+
+headers                :
+  Bloon Name           : true
+  Multiplier           : false
+  First Round          : true
+  Last Round           : true
+  Bloon Delay (s)      : false
+  Cooldown (s)         : true
+  Cost ($)             : true
+  Eco ($)              : true
+  Efficiency (Boost)   : false
+  Repay (s)            : false
+  Eco Speed ($/s)      : false
+  Drain ($/Boost)      : false
+
+svg_folder_name        : svgs
+
+value_conv             :
+  Bloon Name           : ~
+  First Round          : !!python/name:builtins.int
+  Last Round           : !!python/name:builtins.int
+  Cost                 : !!python/name:builtins.int
+
+
+chart_type             : !!python/name:pygal.graph.xy.XY ''
+
+chart_args             :
+  # stroke               : false
+  truncate_legend      : -1
+  include_x_axis       : true
+  include_y_axis       : true
+  human_readable       : true
+  show_only_major_dots : true
+  dots_size            : 4
+  stroke_style         :
+    width              : 2
+    dasharray          : !!python/tuple [2, 3]
+  show_x_guides        : true
+
+chart_opts             :
+  x_title              : $ to be spent in one boost ($)
+  y_title              : Eco gained ($)
+
+default_decimal_digits : 1
+
+...
