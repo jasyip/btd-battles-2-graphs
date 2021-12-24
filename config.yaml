@@ -22,13 +22,13 @@ headers                :
 svg_folder_name        : svgs
 
 value_conv             :
-  Bloon Name           : ~
+  Bloon Name           : !!python/object/apply:builtins.eval [ 'lambda x: x' ]
   First Round          : !!python/name:builtins.int
   Last Round           : !!python/name:builtins.int
   Cost                 : !!python/name:builtins.int
 
 
-chart_type             : !!python/name:pygal.graph.xy.XY ''
+chart_type             : !!python/name:pygal.graph.xy.XY
 
 chart_args             :
   # stroke               : false
@@ -44,8 +44,13 @@ chart_args             :
   show_x_guides        : true
 
 chart_opts             :
+  chart_title          : !!python/name:__main__.chart_title
   x_title              : $ to be spent in one boost ($)
   y_title              : Eco gained ($)
+  value_formatter      : !!python/object/apply:builtins.eval
+    [ 'lambda x: f"+${format_num(x)}"',
+      { "format_num" : !!python/name:__main__.format_num }
+    ]
 
 default_decimal_digits : 1
 
