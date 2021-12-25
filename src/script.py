@@ -1,42 +1,30 @@
 #!/usr/bin/env python3
 
-from pathlib import Path
-from fractions import Fraction
-from decimal import Decimal
-from math import floor, log10
-from sortedcontainers import SortedList, SortedSet, SortedDict
-from pprint import pp, pformat
-import re
-from dataclasses import dataclass, field
 import argparse
-from logging import basicConfig, getLogger, INFO, DEBUG
-from typing import Any, Iterable
+import json
+import pickle
+import re
+import shelve
 from collections import namedtuple
-from itertools import chain
-from tqdm import tqdm
+from csv import DictReader
+from dataclasses import dataclass, field
+from decimal import Decimal
+from fractions import Fraction
 from io import BytesIO
+from itertools import chain
+from logging import DEBUG, INFO, basicConfig, getLogger
+from math import floor, log10
+from pathlib import Path
+from pprint import pformat, pp
+from typing import Any, Iterable
 
 import yaml
+from pandas import read_excel
+from sortedcontainers import SortedDict, SortedList, SortedSet
+from tqdm import tqdm
 from yaml import Loader
 
-import shelve
-
-
-from pandas import DataFrame, read_excel
-
-from csv import DictReader
-
-import json
-
-import pickle
-
-
-from util import DataFileType, ConfigFileType
-
-
-
-
-
+from util import ConfigFileType, DataFileType
 
 basicConfig()
 LOGGER = getLogger(__name__)
@@ -114,11 +102,11 @@ def select_file(parent, names, exts, prev_input=None):
 
 @dataclass(match_args=False)
 class BloonEco:
-    eco     : int          = field(init=False)
-    name    : str          = field(init=False)
-    include : bool         = field(init=False, default=False)
-    amt     : int          = field(repr=False)
-    obj     : dict         = field(repr=False)
+    eco     : int            = field(init=False)
+    name    : str            = field(init=False)
+    include : bool           = field(init=False, default=False)
+    amt     : int            = field(repr=False)
+    obj     : dict[str, Any] = field(repr=False)
 
     def __post_init__(self):
         self.name = self.obj[HEADER.BLOON_NAME]
@@ -373,7 +361,7 @@ def main():
 
     SVG_FOLDER_NAME.mkdir(parents=True, exist_ok=True)
 
-    svg_paths    = draw_svgs       (round_points)
+    draw_svgs(round_points)
 
 
 

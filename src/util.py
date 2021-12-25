@@ -1,5 +1,6 @@
 from enum import Enum, auto
 
+
 class DataFileType(Enum):
     EXCEL  = auto()
     CSV    = auto()
