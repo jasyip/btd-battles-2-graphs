@@ -7,5 +7,5 @@ class DataFileType(Enum):
     PICKLE = auto()
 
 class ConfigFileType(Enum):
-    YAML   = {"yml", "yaml"}
-    SHELVE = {"*"}
+    YAML   = frozenset(("yml", "yaml"))
+    SHELVE = auto()

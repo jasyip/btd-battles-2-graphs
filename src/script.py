@@ -161,15 +161,16 @@ def ext_to_enum(input_file, enum):
     suffix = input_file.suffix
     suffix = suffix[int(suffix[0] == '.') : ].lower()
 
-    attr = lambda k, v: suffix in v and getattr(enum, k.upper())
+    attr = lambda k, v: ((not isinstance(v, set | frozenset) or suffix in v)
+                          and getattr(enum, k.upper()))
 
     loop = {
-        DataFileType   : lambda i: attr(*i)             ,
-        ConfigFileType : lambda i: attr(i.name, i.value),
+        DataFileType   : lambda i: i                ,
+        ConfigFileType : lambda i: (i.name, i.value),
     }
 
     for i in (CONFIG.file_exts.items() if enum == DataFileType else enum):
-        a = loop[enum](i)
+        a = attr(*loop[enum](i))
         if a:
             return a
 
@@ -181,7 +182,8 @@ def load_config(config_file):
             with config_file.open("rb") as f:
                 d = yaml.load(f, Loader)
         case ConfigFileType.SHELVE:
-            d = shelve.open(config_file, "r")
+            with shelve.open(str(config_file), "r") as db:
+                d = dict(db)
 
     if isinstance(d["default_data_filenames"], str):
         d["default_data_filenames"] = (d["default_data_filenames"],)
