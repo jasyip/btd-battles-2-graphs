@@ -1,18 +1,24 @@
 ---
 
-boost_len              : 6                                         # Eco generates every BOOST_LEN seconds
-queue_max_len          : 6                                         # Not yet implemented
-max_round              : 50                                        # Inclusive
+boost_len              : 6                                            # Eco generates every BOOST_LEN seconds
+queue_max_len          : 6                                            # Not yet implemented
+max_round              : 50                                           # Inclusive
 
-default_data_filename  : Battles 2 Eco                             # If no filename for data is provided, default_data_filename is used as a subtitute
+default_data_filenames : [Battles 2 Eco]                              # If no filename for data is provided, default_data_filename is used as a subtitute
+file_exts              :
+  EXCEL                : !!set {xls, xlsx, xlsm, xlsb, odf, ods, odt}
+  CSV                  : !!set {csv}
+  PICKLE               : !!set {pickle}
 
-headers                :                                           # The headers used for each column of data
+svg_folder_name        : svgs                                         # SVG Folder is a sibling of script.py and stores all SVG output
+
+headers                :                                              # The headers used for each column of data
   Bloon Name           : true
   # Multiplier           : false
-  First Round          : true                                      # First round the send is available
-  Last Round           : true                                      # The round the send disappears
+  First Round          : true                                         # First round the send is available
+  Last Round           : true                                         # The round the send disappears
   # Bloon Delay (s)      : false
-  Cooldown (s)         : true                                      # how many seconds a send needs in the send queue
+  Cooldown (s)         : true                                         # how many seconds a send needs in the send queue
   Cost ($)             : true
   Eco ($)              : true
   Efficiency (Boost)   : false
@@ -20,26 +26,24 @@ headers                :                                           # The headers
   Eco Speed ($/s)      : false
   Drain ($/Boost)      : false
 
-svg_folder_name        : svgs                                      # SVG Folder is a sibling of script.py and stores all SVG output
-
 value_conv             :
-  First Round          : !!python/name:builtins.int                # Parse as integer
-  Last Round           : !!python/name:builtins.int                # Parse as integer
-  Cost ($)             : !!python/name:builtins.int                # Parse as integer
-  Cooldown (s)         : !!python/name:sympy.core.numbers.Rational # Parse as rational to preserve precision
-  Eco ($)              : !!python/name:sympy.core.numbers.Rational # Parse as rational to preserve precision
+  First Round          : !!python/name:builtins.int                   # Parse as integer
+  Last Round           : !!python/name:builtins.int                   # Parse as integer
+  Cost ($)             : !!python/name:builtins.int                   # Parse as integer
+  Cooldown (s)         : !!python/name:fractions.Fraction             # Parse as fraction to preserve precision
+  Eco ($)              : !!python/name:fractions.Fraction             # Parse as fraction to preserve precision
 
 
-chart_type             : !!python/name:pygal.graph.xy.XY           # Graph type to use
+chart_type             : !!python/name:pygal.graph.xy.XY              # Graph type to use
 
 chart_args             :
   # stroke               : false
-  truncate_legend      : -1                                        # Prevents bloon names from truncating
-  include_x_axis       : true                                      # Y-axis includes 0
-  include_y_axis       : true                                      # X-axis includes 0
+  truncate_legend      : -1                                           # Prevents bloon names from truncating
+  include_x_axis       : true                                         # Y-axis includes 0
+  include_y_axis       : true                                         # X-axis includes 0
   human_readable       : true
-  show_only_major_dots : true                                      # Don't show unnecessary dots
-  dots_size            : 4                                         # Major dots are important
+  show_only_major_dots : true                                         # Don't show unnecessary dots
+  dots_size            : 4                                            # Major dots are important
   stroke_style         :
     width              : 2
     dasharray          : !!python/tuple [2, 3]
@@ -48,8 +52,11 @@ chart_args             :
 chart_opts             :
   x_title              : $ to be spent in one boost ($)
   y_title              : Eco gained ($)
-  value_formatter      : +${}                                      # String will be formatted with format_num(x)
+  value_formatter      : +${}                                         # String will be formatted with format_num(x)
 
-default_decimal_digits : 1                                         # Maximum amount of decimal digits to be displayed
+default_decimal_digits : 1                                            # Maximum amount of decimal digits to be displayed
+
+
+output_max_cols        : 100
 
 ...
