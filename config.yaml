@@ -8,6 +8,7 @@ default_data_filenames : [Battles 2 Eco]                  # If no filename for d
 file_exts              :
   EXCEL                : !!python/object/new:builtins.frozenset [[xls, xlsx, xlsm, xlsb, odf, ods, odt]]
   CSV                  : !!python/object/new:builtins.frozenset [[csv]]
+  JSON                 : !!python/object/new:builtins.frozenset [[json]]
   PICKLE               : !!python/object/new:builtins.frozenset [[pickle]]
 
 svg_folder_name        : svgs                             # SVG Folder is a sibling of script.py and stores all SVG output

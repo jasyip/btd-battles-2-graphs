@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from fractions import Fraction
 from io import BytesIO
+from inspect import cleandoc
 from itertools import chain
 from logging import DEBUG, INFO, basicConfig, getLogger
 from math import floor, log10
@@ -38,10 +39,10 @@ SCRIPT_DEBUG = None
 
 def my_pformat(paths):
     data = list(map(str, paths))
-    compact = pformat(data, compact=True)
-    if '\n' in compact:
-        compact = f"\n{compact}"
-    return compact.replace('\n', "\n\t")
+    output = pformat(data, compact=True)
+    if new_lines := output.count('\n'):
+        output = f"\n{compact}\n"
+    return output.replace('\n', "\n\t", new_lines + 1)
 
 def select_file(parent, names, exts, prev_input=None):
     exts = tuple(f"{'.' * int(ext[0] != '.')}{ext}" for ext in exts)
@@ -49,10 +50,9 @@ def select_file(parent, names, exts, prev_input=None):
     cur_paths = tuple((parent / name).resolve() for name in names[-1])
 
     if prev_input is not None:
-        LOGGER.warning('\n\t'.join((   "No file satisfied any of the following names:"
-                                    + f" {my_pformat(prev_input)}."                    ,
-                                      f"Currently searching {my_pformat(cur_paths)}...",
-                                  )))
+        LOGGER.warning(              "No file satisfied any of the following names:"
+                       + cleandoc(f""" {my_pformat(prev_input)}.
+                                      \tCurrently searching {my_pformat(cur_paths)}..."""))
 
     input_files = []
     for cur_path in cur_paths:
@@ -67,23 +67,21 @@ def select_file(parent, names, exts, prev_input=None):
         default_data_filenames = getattr(CONFIG, "default_data_filenames", frozenset())
         if names[-1] == default_data_filenames or names[-1] == frozenset('*'):
             if parent == SOURCE_FILE_PARENT:
-                raise FileNotFoundError(   "A file with any of the following names"
-                                        + f" {my_pformat(names[0])} could not be found.")
+                raise FileNotFoundError("A file with any of the following names"
+                                        f" {my_pformat(names[0])} could not be found.")
             return select_file(SOURCE_FILE_PARENT, names[:1], exts, cur_paths)
         return select_file(parent, names + [default_data_filenames], exts, cur_paths)
 
     if len(input_files) > 1:
-        output_str = (    '\n'
-                        + "".join(f"{s}\n" for s in (
-                             "Multiple data files satisfying some names in"              ,
-                             my_pformat(cur_paths)                                       ,
-                             "were found."                                               ,
-                             "Input a natural number corresponding to desired data file.",
-                        ))
-                        + '\n'
-                        + "".join(f"{i}\t{s}\n" for i, s in enumerate(input_files, 1))
-                        + '\n'
-                     )
+        output_str = (                  "Multiple data files satisfying some names in"
+                      ' ' + cleandoc(f"""{my_pformat(cur_paths)} were found.
+                                         Input a natural number corresponding to desired data file.
+
+                                         {{}}""")
+                     ).format(          '\n'.join(f"{i}{{}}{s}".format('\t')
+                                                  for i, s in enumerate(input_files, 1)
+                                                 )
+                                        + '\n' * 2)
         while True:
             try:
                 i = int(input(output_str))
@@ -227,12 +225,10 @@ def get_basic_data(input_file):
     data = tuple(data)
 
     for row in data:
-        row[HEADER.DRAIN]      = Fraction(row[HEADER.COST], row[HEADER.COOLDOWN]) * 6
+        row[HEADER.DRAIN]      = (CONFIG.boost_len
+                                  * Fraction(row[HEADER.COST], row[HEADER.COOLDOWN]))
         row[HEADER.ECO_SPEED]  = Fraction(row[HEADER.ECO], row[HEADER.COOLDOWN])
         row[HEADER.EFFICIENCY] = CONFIG.boost_len * row[HEADER.ECO_SPEED]
-
-    with (SOURCE_FILE_PARENT / "test.pickle").open("wb") as f:
-        pickle.dump(data, f)
 
     return SortedList(data, key = lambda r: r[HEADER.ECO_SPEED])
 

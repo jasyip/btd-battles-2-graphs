@@ -151,5 +151,21 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-
+# My custom stuff
+# Used by pyenv-virtualenv
 .python-version
+
+# Excel
+*.xls
+*.xlsx
+*.xlsm
+*.xlsb
+*.odf
+*.ods
+*.odt
+
+# JSON
+*.json
+
+# Pickle
+*.pickle
