@@ -39,9 +39,10 @@ chart_type             : !!python/name:pygal.graph.xy.XY  # Graph type to use
 
 chart_args             :
   # stroke               : false
+  # logarithmic          : true
+  # order_min            : 100
   truncate_legend      : -1                               # Prevents bloon names from truncating
   include_x_axis       : true                             # Y-axis includes 0
-  include_y_axis       : true                             # X-axis includes 0
   human_readable       : true
   show_only_major_dots : true                             # Don't show unnecessary dots
   dots_size            : 4                                # Major dots are important
@@ -55,9 +56,27 @@ chart_opts             :
   y_title              : Eco gained ($)
   value_formatter      : +${}                             # String will be formatted with format_num(x)
 
-default_decimal_digits : 1                                # Maximum amount of decimal digits to be displayed
+style_args             :
+  plot_background      : 0xdfffdf
 
+chart_colors           :                                  # Specifically for each bloon
+  red                  : 0xff0000
+  blue                 : 0x0000ff
+  green                : 0x00ff00
+  yellow               : 0xffff00
+  pink                 : 0xff00ff
+  white                : 0xaaaaaa
+  black                : 0x000000
+  purple               : 0xa000ff
+  zebra                : 0x555555
+  lead                 : 0x005000
+  rainbow              : 0x7f7fff
+  ceramic              : 0x7f3f00
+
+luminance_factor       : !!python/object/new:fractions.Fraction [4, 1275]
+
+
+default_decimal_digits : 2                                # Maximum amount of decimal digits to be displayed
 
 output_max_cols        : 100
-
 ...

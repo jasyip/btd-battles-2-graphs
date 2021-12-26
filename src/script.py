@@ -6,6 +6,7 @@ import pickle
 import re
 import shelve
 from collections import namedtuple
+from colorsys import rgb_to_hsv, hsv_to_rgb
 from csv import DictReader
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -21,6 +22,7 @@ from typing import Any, Iterable
 
 import yaml
 from pandas import read_excel
+from pygal.style import Style
 from sortedcontainers import SortedDict, SortedList, SortedSet
 from tqdm import tqdm
 from yaml import Loader
@@ -41,7 +43,7 @@ def my_pformat(paths):
     data = list(map(str, paths))
     output = pformat(data, compact=True)
     if new_lines := output.count('\n'):
-        output = f"\n{compact}\n"
+        output = f"\n{output}\n"
     return output.replace('\n', "\n\t", new_lines + 1)
 
 def select_file(parent, names, exts, prev_input=None):
@@ -115,6 +117,7 @@ class RoundData:
     rounds : list[int, int]
     bloons : list[dict[str, Any]]
     points : list[list[int, SortedList]]
+    wins   : dict[int, str]
 
 
 def round_str_info(bounds, add_on = lambda x: x):
@@ -134,13 +137,8 @@ def format_num(x, digits=None):
     if digits is None:
         digits = CONFIG.default_decimal_digits
     if isinstance(x, Fraction):
-        x = str(x.numerator / Decimal(x.denominator)).rstrip('0')
-        if x[-1] == '.':
-            x = x[ : -1 ]
-        else:
-            digit_re = fr"\d[1-9]{{0, {digits}}}" if digits else ""
-            x = re.sub(rf'(\.{digit_re})\d+', r"\1", x)
-    return str(x)
+        x = str(x.numerator / Decimal(x.denominator))
+    return round(float(x), digits)
 
 
 def ext_to_enum(input_file, enum):
@@ -175,6 +173,16 @@ def load_config(config_file):
         d["default_data_filenames"] = (d["default_data_filenames"],)
     if isinstance(d["default_data_filenames"], Iterable):
         d["default_data_filenames"] = frozenset(map(Path, d["default_data_filenames"]))
+
+    for k, v in d["style_args"].items():
+        if isinstance(v, int):
+            d["style_args"][k] = f'#{hex(v)[2:]}'
+
+    r = re.compile(r"#(\d{6})")
+
+    for k, v in d["chart_colors"].items():
+        if isinstance(v, str):
+            d["chart_colors"][k] = int(r.fullmatch(v)[0])
 
     CONFIG = namedtuple("Config", d.keys())(**d)
     HEADER = type("HEADER", (), { re.sub(r"\(.*\)", "", h, 1).strip().upper().replace(' ', '_') : h
@@ -268,53 +276,78 @@ def calculate_points(data, min_round=1, max_round=None):
             add_race(bloon)
 
         drain_race = [ [k, v] for k, v in drain_race.items()]
+        drain_wins = {}
+        latest_win = None
 
-        include = lambda i, b: not (i > 0 and (drain_race[i - 1][1][0].eco >= b.eco
-                                               or drain_race[i - 1][1][0].name == b.name))
+        for i, (k, v) in enumerate(drain_race):
+            if latest_win is None or drain_wins[latest_win].eco < v[0].eco:
+                drain_wins[k] = v[0]
+                if latest_win is not None:
+                    drain_wins[k].include = drain_wins[latest_win].name != v[0].name
+                latest_win = k
 
-        for i, (_, v) in enumerate(drain_race):
-            if include(i, v[0]):
-                drain_race[i][1][0].include = True
+        pp(drain_race)
 
-        round_points.append(RoundData([r, r], bloons, drain_race))
+        round_points.append(RoundData([r, r], bloons, drain_race, drain_wins))
 
     return round_points
 
 
-def new_chart(rounds):
-    chart = CONFIG.chart_type(**CONFIG.chart_args)
-    for k, v in CONFIG.chart_opts.items():
-        setattr(chart, k, (lambda x: v.format(format_num(x))) if k == "value_formatter" else v)
+def new_chart(round_data):
+    r = re.compile(r"(?P<name>\w+)\s*\((?P<spacing>\w+)\)")
+    equation = {
+        "spaced"  : lambda s: CONFIG.luminance_factor * (1 - s) + s, # lighten
+        "grouped" : lambda s: (1 - CONFIG.luminance_factor) * s    , # darken
+    }
+    def get_color(name):
+        data = r.fullmatch(name).groupdict()
+        hex_color = CONFIG.chart_colors[data["name"].lower()]
+        values = [Fraction((hex_color >> i) & 0b11111111, 255) for i in range(16, -1, -8)]
+        h, s, v = map(Fraction, rgb_to_hsv(*values))
+        values = list(map(Fraction, hsv_to_rgb(h, equation[data["spacing"].lower()](s), v)))
+        return f'#{"".join(hex(round(255 * v))[2:].zfill(2) for v in values)}'
 
-    chart.title = chart_title(rounds)
+    style = Style(
+        **CONFIG.style_args                                                        ,
+        colors=[get_color(b[HEADER.BLOON_NAME].strip()) for b in round_data.bloons],
+    )
+
+    chart = CONFIG.chart_type(**CONFIG.chart_args, style=style)
+    for k, v in CONFIG.chart_opts.items():
+        setattr(chart, k, v.format if k == "value_formatter" else v)
+    chart.title = chart_title(round_data.rounds)
+    chart.xrange = (0, round_data.points[-1][0])
     return chart
 
 def draw_svgs(round_points):
     svg_paths = []
 
     for r in tqdm(round_points, ncols=CONFIG.output_max_cols, unit="file", colour="green"):
-        chart = new_chart(r.rounds)
+        chart = new_chart(r)
 
         bloon_points = {}
-        bloon_major_points = []
+
         for bloon in r.bloons:
             bloon_points[bloon[HEADER.BLOON_NAME]] = []
 
         for drain, possible_bloons in r.points:
             for bloon_eco in possible_bloons:
-                bloon_points[bloon_eco.name].append((drain, bloon_eco.eco))
-            if possible_bloons[0].include:
-                bloon_major_points.append(drain)
+                bloon_points[bloon_eco.name].append(tuple(map(format_num, (drain, bloon_eco.eco))))
+
+        bloon_major_points = [tuple(map(format_num, (k, v.eco)))
+                              for i, (k, v) in enumerate(r.wins.items())
+                              if v.include or i == len(r.wins) - 1]
 
         for i in bloon_points.items():
             chart.add(*i)
 
-        """
-        chart.x_labels = [ str(b) for b in bloon_major_points ]
-        chart.x_labels_major = chart.x_labels
+        # chart.x_labels, chart.y_labels = zip(*bloon_major_points)
+        # chart.x_labels_major, chart.y_labels_minor = chart.x_labels, chart.y_labels
+        # chart.x_labels = bloon_major_points
+        # chart.x_labels_major = bloon_major_points
+        # chart.x_labels = bloon_major_points
+        # chart.x_labels_major = bloon_major_points
 
-        chart.xrange = (0, chart.xrange[1])
-        """
         svg_paths.append(filename(r.rounds))
         if SCRIPT_DEBUG:
             tqdm.write(' '.join(("Overwritten" if svg_paths[-1].is_file() else "Written",
@@ -322,6 +355,11 @@ def draw_svgs(round_points):
                                )))
 
         chart.render_to_file(svg_paths[-1])
+
+    old_extra_svgs = frozenset(SVG_FOLDER_NAME.glob("*.svg")) - frozenset(svg_paths)
+
+    if len(old_extra_svgs):
+        LOGGER.warning(f"{my_pformat(list(old_extra_svgs))} are extra SVG files in the folder.")
 
     return svg_paths
 
